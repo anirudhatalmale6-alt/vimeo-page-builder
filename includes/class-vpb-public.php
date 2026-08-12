@@ -39,9 +39,61 @@ class VPB_Public {
 	const RESERVED = array( 'wp-admin', 'wp-login', 'wp-content', 'wp-includes', 'wp-json', 'feed', 'sitemap', 'robots', 'xmlrpc' );
 
 	public function __construct() {
+		add_action( 'init', array( $this, 'never_cache_this' ), 0 );
 		add_action( 'template_redirect', array( $this, 'maybe_render' ), 0 );
 		add_action( 'wp_ajax_vpb_public_build', array( $this, 'ajax' ) );
 		add_action( 'wp_ajax_nopriv_vpb_public_build', array( $this, 'ajax' ) );
+	}
+
+	/**
+	 * Tell every caching plugin to leave this URL alone.
+	 *
+	 * Found on a live site: a page cache had frozen the build address and was
+	 * serving a saved copy of the passcode screen. Two consequences, one annoying
+	 * and one not:
+	 *
+	 *   - Someone who had already typed the passcode got shown it again on every
+	 *     visit, because PHP never ran and the cookie was never looked at. The
+	 *     12-hour sign-in silently did nothing.
+	 *   - Worse in principle: whichever request happens to populate the cache
+	 *     decides what everyone else sees. Fill it from an anonymous visitor and
+	 *     you cache the passcode screen, which is harmless. Fill it from the
+	 *     employee's browser, cookie and all, and you have just published the
+	 *     build screen to the world.
+	 *
+	 * nocache_headers() in maybe_render() is not enough on its own: by the time a
+	 * static cached copy exists, Apache serves the file and PHP is never asked.
+	 * The constant has to be set early enough that the cache declines to store
+	 * the page in the first place. DONOTCACHEPAGE is honoured by WP Super Cache,
+	 * W3 Total Cache, WP Rocket, LiteSpeed and Comet Cache.
+	 */
+	public function never_cache_this() {
+		if ( '' === self::requested_door() ) {
+			return;
+		}
+
+		foreach ( array( 'DONOTCACHEPAGE', 'DONOTCACHEOBJECT', 'DONOTCACHEDB' ) as $c ) {
+			if ( ! defined( $c ) ) {
+				define( $c, true );
+			}
+		}
+
+		// LiteSpeed and WP Rocket both prefer to be told directly.
+		do_action( 'litespeed_control_set_nocache', 'vimeo page builder: per-visitor page' );
+		add_filter( 'rocket_cache_reject_uri', array( $this, 'reject_uri' ) );
+		add_filter( 'do_rocket_generate_caching_files', '__return_false' );
+	}
+
+	public function reject_uri( $uris ) {
+		$s    = vpb_settings();
+		$path = self::clean_path( isset( $s['public_path'] ) ? $s['public_path'] : '' );
+
+		if ( $path && is_array( $uris ) ) {
+			$uris[] = '/' . $path . '/(.*)';
+			$uris[] = '/' . $path . '/?$';
+		}
+
+		return $uris;
 	}
 
 	/* ------------------------------------------------------------- addresses */
@@ -353,6 +405,9 @@ class VPB_Public {
 		}
 
 		nocache_headers();
+		// no-store on top of what nocache_headers() sends: this page differs per
+		// visitor depending on a cookie, so a shared cache must not keep a copy.
+		header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0', true );
 		header( 'X-Robots-Tag: noindex, nofollow, noarchive, nosnippet', true );
 		header( 'Referrer-Policy: no-referrer' );
 

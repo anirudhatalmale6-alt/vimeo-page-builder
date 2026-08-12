@@ -75,6 +75,10 @@ chk("it does NOT show a build button", "BUILD" in body, False)
 chk("it does NOT leak the secret key", KEY in body, False)
 chk("kept out of Google", "noindex" in hdrs.get("X-Robots-Tag", ""), True)
 chk("referrer suppressed", hdrs.get("Referrer-Policy"), "no-referrer")
+# A shared cache keeping a copy of this page is what broke the 12-hour sign-in
+# on the live site, so the header is asserted, not assumed.
+chk("no shared cache may keep a copy",
+    "no-store" in hdrs.get("Cache-Control", ""), True)
 
 print("\ntyping it wrong:")
 st, body, _, _ = fetch(f"{BASE}/video-builder/", {"vpb_passcode": "Rhino"})
