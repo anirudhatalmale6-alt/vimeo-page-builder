@@ -75,7 +75,11 @@ search engines by both header and meta tag, sent with `Referrer-Policy: no-refer
 cannot leak to third parties through the Referer header, rate limited to 30 builds an hour
 per IP, and rotatable from Settings the instant it is shared with the wrong person. A wrong
 key renders nothing at all — the URL does not reveal that a tool is there. An optional
-passcode can be required on top, so a leaked address alone is not enough. The page can only
+passcode can be required on top, so a leaked address alone is not enough. The passcode is
+matched case-insensitively and trimmed of stray spaces: the field is `type="password"`, so
+a phone keyboard will not auto-capitalise it, and a passcode like "Armadillo" would
+otherwise fail for a reason the person typing it cannot see. Insisting on the shift key
+adds nothing when the real protection is the 40-character key. The page can only
 build; it cannot edit, delete, or reach settings, and every build through it is logged with
 IP and timestamp.
 

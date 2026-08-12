@@ -71,10 +71,18 @@ chk( 'rotated key is a different value',     $k === $k2, false );
 echo "\npasscode:\n";
 vpb_set( array( 'public_passcode' => '' ) );
 chk( 'no passcode set -> anything passes', $pc_ok->invoke( null, '' ), true );
-vpb_set( array( 'public_passcode' => 'letmein' ) );
-chk( 'correct passcode accepted',          $pc_ok->invoke( null, 'letmein' ), true );
-chk( 'wrong passcode rejected',            $pc_ok->invoke( null, 'Letmein' ), false );
-chk( 'blank passcode rejected when set',   $pc_ok->invoke( null, '' ), false );
+
+// The real one the client chose, capitalised - the exact shape that breaks if
+// the check is case-sensitive and someone types it on a phone.
+vpb_set( array( 'public_passcode' => 'Armadillo' ) );
+chk( 'exact passcode accepted',            $pc_ok->invoke( null, 'Armadillo' ), true );
+chk( 'all lowercase accepted',             $pc_ok->invoke( null, 'armadillo' ), true );
+chk( 'all uppercase accepted',             $pc_ok->invoke( null, 'ARMADILLO' ), true );
+chk( 'leading/trailing space tolerated',   $pc_ok->invoke( null, '  Armadillo ' ), true );
+chk( 'a different word rejected',          $pc_ok->invoke( null, 'Armadillos' ), false );
+chk( 'near miss rejected',                 $pc_ok->invoke( null, 'Armadilo' ), false );
+chk( 'blank rejected when set',            $pc_ok->invoke( null, '' ), false );
+chk( 'whitespace-only rejected when set',  $pc_ok->invoke( null, '   ' ), false );
 vpb_set( array( 'public_passcode' => '' ) );
 
 echo "\nrate limit (" . VPB_Public::RATE_LIMIT . "/hour):\n";

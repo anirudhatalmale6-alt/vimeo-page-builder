@@ -58,14 +58,33 @@ class VPB_Public {
 		return hash_equals( (string) $s['public_key'], (string) $given );
 	}
 
+	/**
+	 * Check the shared passcode, forgivingly.
+	 *
+	 * Deliberately case-insensitive and whitespace-trimmed. This is a door code
+	 * a colleague types on a phone, not a password: the field is type="password"
+	 * so phone keyboards will not auto-capitalise it, and a passcode like
+	 * "Armadillo" would then fail for a reason nobody could see. The real
+	 * protection here is the 40-character key in the URL - insisting on the
+	 * shift key adds no meaningful security and guarantees a support call.
+	 */
 	private static function passcode_ok( $given ) {
 		$s = vpb_settings();
 
-		if ( empty( $s['public_passcode'] ) ) {
+		$want = trim( (string) $s['public_passcode'] );
+
+		if ( '' === $want ) {
 			return true;   // not configured, so nothing to check
 		}
 
-		return hash_equals( (string) $s['public_passcode'], (string) $given );
+		$given = trim( (string) $given );
+
+		// Compare a fixed-length digest of each so the comparison stays
+		// constant-time even though the inputs differ in length.
+		return hash_equals(
+			hash( 'sha256', strtolower( $want ) ),
+			hash( 'sha256', strtolower( $given ) )
+		);
 	}
 
 	private static function client_ip() {
