@@ -533,16 +533,20 @@ class VPB_Builder {
 		self::flush_elementor_css( $post_id );
 
 		return array(
-			'status'     => 'built',
-			'post_id'    => $post_id,
-			'vimeo_id'   => $vimeo_id,
-			'title'      => $title,
-			'permalink'  => get_permalink( $post_id ),
-			'edit_url'   => self::elementor_edit_url( $post_id ),
-			'video_name' => $title_from_vimeo,
-			'company'    => $company,
-			'warning'    => $warning,
-			'swapped'    => $swap['widgets'],
+			'status'      => 'built',
+			'post_id'     => $post_id,
+			'vimeo_id'    => $vimeo_id,
+			'title'       => $title,
+			'permalink'   => get_permalink( $post_id ),
+			'edit_url'    => self::elementor_edit_url( $post_id ),
+			'video_name'  => $title_from_vimeo,
+			'company'     => $company,
+			'warning'     => $warning,
+			'swapped'     => $swap['widgets'],
+			// So the screen can say "live" or "draft" honestly rather than
+			// telling someone a page is public when it is sitting unpublished.
+			'is_live'     => ( 'publish' === get_post_status( $post_id ) ),
+			'post_status' => get_post_status( $post_id ),
 		);
 	}
 

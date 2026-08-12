@@ -199,11 +199,22 @@ class VPB_Admin {
 		$new['public_enabled']  = empty( $in['public_enabled'] ) ? 0 : 1;
 		$new['public_passcode'] = isset( $in['public_passcode'] ) ? sanitize_text_field( $in['public_passcode'] ) : '';
 		$new['public_key']      = isset( $old['public_key'] ) ? $old['public_key'] : '';
+		$new['public_path']     = VPB_Public::clean_path( isset( $in['public_path'] ) ? $in['public_path'] : '' );
 
 		// Generate on first enable, and on an explicit rotate. Rotating instantly
 		// kills the old URL, which is the whole point of having the button.
 		if ( $new['public_enabled'] && ( '' === $new['public_key'] || ! empty( $in['vpb_rotate_key'] ) ) ) {
 			$new['public_key'] = VPB_Public::new_key();
+		}
+
+		// A short address is guessable, so the passcode stops being optional and
+		// becomes the only thing standing between the internet and a publish
+		// button. Refuse the address rather than quietly accept an open one.
+		$err = '';
+
+		if ( '' !== $new['public_path'] && '' === trim( $new['public_passcode'] ) ) {
+			$new['public_path'] = '';
+			$err                = 'nopass';
 		}
 
 		// Blank "current ID" means: work it out from the master page.
@@ -213,13 +224,16 @@ class VPB_Admin {
 
 		update_option( VPB_OPTION, $new );
 
-		wp_safe_redirect( add_query_arg(
-			array(
-				'page'       => self::SETTINGS_SLUG,
-				'vpb_saved'  => 1,
-			),
-			admin_url( 'admin.php' )
-		) );
+		$args = array(
+			'page'      => self::SETTINGS_SLUG,
+			'vpb_saved' => 1,
+		);
+
+		if ( $err ) {
+			$args['vpb_err'] = $err;
+		}
+
+		wp_safe_redirect( add_query_arg( $args, admin_url( 'admin.php' ) ) );
 		exit;
 	}
 
@@ -238,6 +252,16 @@ class VPB_Admin {
 
 			<?php if ( ! empty( $_GET['vpb_saved'] ) ) : ?>
 				<div class="notice notice-success is-dismissible"><p>Settings saved.</p></div>
+			<?php endif; ?>
+
+			<?php if ( isset( $_GET['vpb_err'] ) && 'nopass' === $_GET['vpb_err'] ) : ?>
+				<div class="notice notice-error">
+					<p>
+						<strong>The short address was not saved.</strong>
+						A short address can be guessed, so it needs a passcode &mdash; without one it would be an open
+						publish button on the public internet. Set a passcode and save again.
+					</p>
+				</div>
 			<?php endif; ?>
 
 			<?php if ( $s['template_id'] && ! $detected ) : ?>
@@ -415,9 +439,53 @@ class VPB_Admin {
 							<input type="text" name="public_passcode" id="public_passcode" class="regular-text"
 								value="<?php echo esc_attr( $s['public_passcode'] ); ?>" autocomplete="off">
 							<p class="description">
-								Optional but recommended. A word your staff type on that page before it will build anything,
-								so a leaked address on its own is not enough. Leave blank for no passcode.
+								A word your staff type before it will build anything, so a leaked address on its own is not
+								enough. Capitals and stray spaces are ignored &mdash; the field is a password box, so phones
+								will not auto-capitalise it. Wrong guesses are capped at
+								<?php echo (int) VPB_Public::FAIL_LIMIT; ?> an hour per person.
 							</p>
+							<p class="description">
+								Optional with the long address above. <strong>Required</strong> if you set a short one below.
+							</p>
+						</td>
+					</tr>
+
+					<tr>
+						<th scope="row"><label for="public_path">Short address</label></th>
+						<td>
+							<span class="vpb-prefix"><?php echo esc_html( trailingslashit( home_url( '/' ) ) ); ?></span>
+							<input type="text" name="public_path" id="public_path" class="regular-text vpb-path"
+								value="<?php echo esc_attr( $s['public_path'] ); ?>"
+								placeholder="video-builder" autocomplete="off" spellcheck="false">
+
+							<p class="description">
+								Optional. Gives the same tool a short address that can be typed from memory, instead of the
+								40-character one above. Both keep working.
+							</p>
+							<p class="description">
+								Because a short address <em>can</em> be guessed, it works differently: it asks for the passcode
+								first and shows nothing else until it is right &mdash; no site name, no mention of what the page
+								does. The long address stays the way it is.
+							</p>
+
+							<?php
+							$path     = VPB_Public::clean_path( $s['public_path'] );
+							$conflict = $path ? VPB_Public::path_conflict( $path ) : 0;
+							?>
+
+							<?php if ( $conflict ) : ?>
+								<p class="description vpb-warn">
+									<strong>Careful:</strong> <code><?php echo esc_html( $path ); ?></code> is already
+									&ldquo;<?php echo esc_html( get_the_title( $conflict ) ); ?>&rdquo;
+									(#<?php echo (int) $conflict; ?>). The build tool will take over that address and the real
+									page will stop being reachable. Pick a different word.
+								</p>
+							<?php elseif ( $path && ! empty( $s['public_enabled'] ) ) : ?>
+								<p class="vpb-keybox">
+									<input type="text" class="large-text code" readonly onfocus="this.select()"
+										value="<?php echo esc_attr( VPB_Public::friendly_url() ); ?>">
+								</p>
+							<?php endif; ?>
 						</td>
 					</tr>
 				</table>
@@ -497,6 +565,9 @@ class VPB_Admin {
 .vpb-wrap .vpb-lead{max-width:700px;font-size:14px}
 .vpb-wrap .vpb-keybox{max-width:700px;margin:12px 0 6px}
 .vpb-wrap .vpb-keybox input{background:#f6f7f7;font-size:13px;padding:8px}
+.vpb-wrap .vpb-prefix{color:#646970;font-family:Consolas,Monaco,monospace;font-size:13px}
+.vpb-wrap .vpb-path{width:220px!important;font-family:Consolas,Monaco,monospace}
+.vpb-wrap .vpb-warn{color:#b32d2e}
 CSS;
 	}
 
@@ -549,7 +620,9 @@ jQuery(function($){
 				return;
 			}
 
-			var html = '<p><strong>Done.</strong> '+esc(d.title)+' is live.</p>';
+			var html = d.is_live
+				? '<p><strong>Done.</strong> '+esc(d.title)+' is live.</p>'
+				: '<p><strong>Done.</strong> '+esc(d.title)+' has been saved as a draft — it is not public yet.</p>';
 
 			if (d.video_name){
 				html += '<p>Video: “'+esc(d.video_name)+'”</p>';

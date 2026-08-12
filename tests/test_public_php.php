@@ -8,6 +8,20 @@ function vpb_set( $args ) {
 	update_option( VPB_OPTION, array_merge( vpb_settings(), $args ) );
 }
 
+/**
+ * Snapshot the real settings up front and put them back at the end.
+ *
+ * Learned the hard way twice now: a test that leaves settings behind makes the
+ * NEXT thing you look at appear broken. Once it was verify_vimeo, and once it
+ * was a cleared passcode that made the short address serve a blank page.
+ */
+$vpb_original = get_option( VPB_OPTION, array() );
+
+register_shutdown_function( function () use ( $vpb_original ) {
+	update_option( VPB_OPTION, $vpb_original );
+	echo "\nsettings restored to how they were before this run\n";
+} );
+
 function vpb_post( $key, $passcode = '', $vimeo = '22439234' ) {
 	$_POST = array(
 		'action'   => 'vpb_public_build',

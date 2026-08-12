@@ -68,24 +68,44 @@ implementation — would have wiped that grid out on every page built.
 title becomes something searchable; the URL stays the bare video ID. A list of pages
 titled only `1211689555` is unusable a year later.
 
-**Building without a WordPress login.** Optional. Puts the build screen on a secret
-address (`yoursite.com/?vpb=<40-character-key>`) so staff can use it without an account.
-The key is the credential, so it is treated as one: compared in constant time, kept out of
-search engines by both header and meta tag, sent with `Referrer-Policy: no-referrer` so it
-cannot leak to third parties through the Referer header, rate limited to 30 builds an hour
-per IP, and rotatable from Settings the instant it is shared with the wrong person. A wrong
-key renders nothing at all — the URL does not reveal that a tool is there. An optional
-passcode can be required on top, so a leaked address alone is not enough. The passcode is
-matched case-insensitively and trimmed of stray spaces: the field is `type="password"`, so
-a phone keyboard will not auto-capitalise it, and a passcode like "Armadillo" would
-otherwise fail for a reason the person typing it cannot see. Insisting on the shift key
-adds nothing when the real protection is the 40-character key. The page can only
-build; it cannot edit, delete, or reach settings, and every build through it is logged with
-IP and timestamp.
+**Building without a WordPress login.** Optional. Puts the build screen on a secret address
+so staff can use it without an account. There are two forms of it, and they are not equally
+safe, so they do not behave the same.
 
-Be clear-eyed about the trade: a secret URL is weaker than a login. Anyone holding it can
-publish pages. It is a reasonable trade when the alternative is staff not using the tool at
-all, and the blast radius is capped — but it is a trade, not a free win.
+*The long address* — `yoursite.com/?vpb=<40-character-key>`. The key is the credential, so
+it is treated as one: compared in constant time, kept out of search engines by both header
+and meta tag, sent with `Referrer-Policy: no-referrer` so it cannot leak through the Referer
+header, rate limited to 30 builds an hour per IP, and rotatable from Settings the instant it
+is shared with the wrong person. A wrong key renders nothing at all — the URL does not
+reveal that a tool is there.
+
+*The short address* — `yoursite.com/video-builder`, because the long one is miserable to
+type on a phone. A short address can be guessed, so the key can no longer be what protects
+it: the passcode is, and it therefore becomes **required** rather than optional. Settings
+refuses to save a short address without one. It is asked for before anything else renders,
+so someone who stumbles onto the URL sees a bare passcode box — no site name, no logo, no
+mention of Vimeo or of building anything. Getting it right sets a signed, HTTP-only cookie
+good for 12 hours; the cookie is bound to both the passcode and the secret key, so changing
+either one logs everybody out immediately. Wrong guesses are capped at ten an hour per IP,
+which is what makes a single dictionary word viable at all. Behind the gate the secret key
+is deliberately *not* written into the page.
+
+The passcode is matched case-insensitively and trimmed of stray spaces, and the short
+address matches case-insensitively too. Both for the same reason: the passcode field is
+`type="password"` and a phone address bar capitalises the first letter of a typed URL, so
+"Armadillo" and "Video-Builder" would each fail for a reason the person typing cannot see.
+Insisting on the shift key adds no security when the real protection is a 40-character key
+or a ten-per-hour attempt limit — it just guarantees a support call.
+
+If the short address collides with a page that already exists, Settings says so by name
+rather than quietly swallowing that URL.
+
+Either way the page can only build. It cannot edit, delete, or reach settings, and every
+build through it is logged with IP and timestamp.
+
+Be clear-eyed about the trade: this is weaker than a login. Anyone with the address and the
+passcode can publish pages. It is a reasonable trade when the alternative is staff not using
+the tool at all, and the blast radius is capped — but it is a trade, not a free win.
 
 **A video in a global header.** If your video lives in a Theme Builder header rather than
 in the page, cloning the page will not touch it, and the plugin says so rather than
@@ -142,9 +162,20 @@ Verified against WordPress 7.0.3 and Elementor 4.2.2 on PHP 8.3.
   where the video ID also appears as unrelated text, two different videos on one page, and
   both privacy-hash directions.
 - Role checks: administrator, editor and subscriber against both screens.
-- 28 checks on the no-login page: key accepted/rejected/rotated, prefix and
+- 25 checks on the long secret address: key accepted/rejected/rotated, prefix and
   whitespace-padded keys, the off switch, passcode, rate limit boundary, endpoint
   exposure, noindex headers, referrer policy, and a wrong key revealing nothing.
+- 48 checks on the short address: address parsing (pasted URLs, slashes, capitals,
+  reserved words), collision detection, which door a request is knocking on, cookie
+  forgery and expiry, re-signing an expiry, invalidation by passcode change / key
+  rotation / off switch, and the wrong-passcode limit at its boundary.
+- 25 more driven over real HTTP as a phone: the gate revealing nothing, a wrong
+  passcode, a lowercase passcode on a capitalised URL, the cookie being set HttpOnly,
+  building with the cookie alone, being refused without it, the key never appearing in
+  the page, lockout after ten guesses, and recovery afterwards.
+- 12 through the Settings form itself: a short address refused without a passcode,
+  a collision named rather than swallowed, sloppy input tidied into a slug, and the
+  address going dead when cleared.
 - 10 title-format cases including empty tokens, pasted HTML and stray punctuation.
 - Front-end render confirmed: correct video, correct per-page stylesheet, master page
   untouched.
