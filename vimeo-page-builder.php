@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Vimeo Page Builder
  * Description: One field, one button. Paste a Vimeo ID and it clones your master Elementor page, renames it, re-points the video and publishes it.
- * Version:     1.1.0
+ * Version:     1.2.0
  * Author:      Anirudha Talmale
  * License:     GPL-2.0-or-later
  * Text Domain: vimeo-page-builder
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'VPB_VERSION', '1.1.0' );
+define( 'VPB_VERSION', '1.2.0' );
 define( 'VPB_FILE', __FILE__ );
 define( 'VPB_DIR', plugin_dir_path( __FILE__ ) );
 define( 'VPB_URL', plugin_dir_url( __FILE__ ) );
@@ -24,6 +24,7 @@ define( 'VPB_OPTION', 'vpb_settings' );
 
 require_once VPB_DIR . 'includes/class-vpb-vimeo.php';
 require_once VPB_DIR . 'includes/class-vpb-builder.php';
+require_once VPB_DIR . 'includes/class-vpb-public.php';
 require_once VPB_DIR . 'includes/class-vpb-admin.php';
 
 /**
@@ -39,6 +40,9 @@ function vpb_settings() {
 		'parent_id'      => 0,
 		'capability'     => 'edit_pages',
 		'verify_vimeo'   => 1,       // check the video actually exists before building
+		'public_enabled' => 0,       // build screen on a secret URL, no login needed
+		'public_key'     => '',
+		'public_passcode'=> '',
 	);
 
 	$saved = get_option( VPB_OPTION, array() );
@@ -60,6 +64,7 @@ function vpb_build_cap() {
 }
 
 new VPB_Admin();
+new VPB_Public();
 
 /**
  * Elementor is a hard dependency - without it there is no master page to clone.

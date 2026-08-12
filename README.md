@@ -68,6 +68,21 @@ implementation — would have wiped that grid out on every page built.
 title becomes something searchable; the URL stays the bare video ID. A list of pages
 titled only `1211689555` is unusable a year later.
 
+**Building without a WordPress login.** Optional. Puts the build screen on a secret
+address (`yoursite.com/?vpb=<40-character-key>`) so staff can use it without an account.
+The key is the credential, so it is treated as one: compared in constant time, kept out of
+search engines by both header and meta tag, sent with `Referrer-Policy: no-referrer` so it
+cannot leak to third parties through the Referer header, rate limited to 30 builds an hour
+per IP, and rotatable from Settings the instant it is shared with the wrong person. A wrong
+key renders nothing at all — the URL does not reveal that a tool is there. An optional
+passcode can be required on top, so a leaked address alone is not enough. The page can only
+build; it cannot edit, delete, or reach settings, and every build through it is logged with
+IP and timestamp.
+
+Be clear-eyed about the trade: a secret URL is weaker than a login. Anyone holding it can
+publish pages. It is a reasonable trade when the alternative is staff not using the tool at
+all, and the blast radius is capped — but it is a trade, not a free win.
+
 **A video in a global header.** If your video lives in a Theme Builder header rather than
 in the page, cloning the page will not touch it, and the plugin says so rather than
 silently building a page with the wrong video on it.
@@ -123,6 +138,9 @@ Verified against WordPress 7.0.3 and Elementor 4.2.2 on PHP 8.3.
   where the video ID also appears as unrelated text, two different videos on one page, and
   both privacy-hash directions.
 - Role checks: administrator, editor and subscriber against both screens.
+- 28 checks on the no-login page: key accepted/rejected/rotated, prefix and
+  whitespace-padded keys, the off switch, passcode, rate limit boundary, endpoint
+  exposure, noindex headers, referrer policy, and a wrong key revealing nothing.
 - 10 title-format cases including empty tokens, pasted HTML and stray punctuation.
 - Front-end render confirmed: correct video, correct per-page stylesheet, master page
   untouched.

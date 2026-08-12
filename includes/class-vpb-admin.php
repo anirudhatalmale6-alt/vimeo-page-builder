@@ -194,6 +194,18 @@ class VPB_Admin {
 			'verify_vimeo' => empty( $in['verify_vimeo'] ) ? 0 : 1,
 		);
 
+		$old = vpb_settings();
+
+		$new['public_enabled']  = empty( $in['public_enabled'] ) ? 0 : 1;
+		$new['public_passcode'] = isset( $in['public_passcode'] ) ? sanitize_text_field( $in['public_passcode'] ) : '';
+		$new['public_key']      = isset( $old['public_key'] ) ? $old['public_key'] : '';
+
+		// Generate on first enable, and on an explicit rotate. Rotating instantly
+		// kills the old URL, which is the whole point of having the button.
+		if ( $new['public_enabled'] && ( '' === $new['public_key'] || ! empty( $in['vpb_rotate_key'] ) ) ) {
+			$new['public_key'] = VPB_Public::new_key();
+		}
+
 		// Blank "current ID" means: work it out from the master page.
 		if ( '' === $new['source_vimeo'] && $new['template_id'] ) {
 			$new['source_vimeo'] = VPB_Builder::detect_vimeo_id( $new['template_id'] );
@@ -361,6 +373,55 @@ class VPB_Admin {
 					</tr>
 				</table>
 
+				<h2 class="vpb-h2">Build without logging in</h2>
+				<p class="description vpb-lead">
+					Puts the build screen on a secret web address, so someone can use it without a WordPress account.
+					Anyone who has the address can build pages, so treat it like a password.
+				</p>
+
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row">Secret link</th>
+						<td>
+							<label>
+								<input type="checkbox" name="public_enabled" value="1" <?php checked( $s['public_enabled'], 1 ); ?>>
+								Turn on the no-login build page
+							</label>
+
+							<?php if ( ! empty( $s['public_enabled'] ) && ! empty( $s['public_key'] ) ) : ?>
+								<p class="vpb-keybox">
+									<input type="text" class="large-text code" readonly
+										onfocus="this.select()"
+										value="<?php echo esc_attr( VPB_Public::url() ); ?>">
+								</p>
+								<p class="description">
+									Send this to whoever is building the pages. It works on a phone.
+									It is deliberately kept out of Google, but anything you paste into a chat app or
+									email can be forwarded on &mdash; so if it ever gets out, tick the box below and save.
+								</p>
+								<p>
+									<label>
+										<input type="checkbox" name="vpb_rotate_key" value="1">
+										<strong>Change the address now</strong> &mdash; the old one stops working immediately
+									</label>
+								</p>
+							<?php endif; ?>
+						</td>
+					</tr>
+
+					<tr>
+						<th scope="row"><label for="public_passcode">Passcode</label></th>
+						<td>
+							<input type="text" name="public_passcode" id="public_passcode" class="regular-text"
+								value="<?php echo esc_attr( $s['public_passcode'] ); ?>" autocomplete="off">
+							<p class="description">
+								Optional but recommended. A word your staff type on that page before it will build anything,
+								so a leaked address on its own is not enough. Leave blank for no passcode.
+							</p>
+						</td>
+					</tr>
+				</table>
+
 				<?php submit_button( 'Save settings' ); ?>
 			</form>
 		</div>
@@ -433,6 +494,9 @@ class VPB_Admin {
 .vpb-wrap .vpb-table td,.vpb-wrap .vpb-table th{padding:9px 12px}
 .vpb-wrap .vpb-actions a{margin-right:12px}
 .vpb-wrap .vpb-pill{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:9px;background:#dba617;color:#fff;font-size:11px;text-transform:uppercase}
+.vpb-wrap .vpb-lead{max-width:700px;font-size:14px}
+.vpb-wrap .vpb-keybox{max-width:700px;margin:12px 0 6px}
+.vpb-wrap .vpb-keybox input{background:#f6f7f7;font-size:13px;padding:8px}
 CSS;
 	}
 
