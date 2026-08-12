@@ -103,6 +103,30 @@ rather than quietly swallowing that URL.
 Either way the page can only build. It cannot edit, delete, or reach settings, and every
 build through it is logged with IP and timestamp.
 
+**Page caches.** This page must run on every visit — it decides what to show from a cookie.
+A cached copy breaks that in two ways: someone who has already typed the passcode is asked
+for it again, because PHP never runs to check their cookie; and more seriously, whichever
+visitor happens to fill the cache decides what everyone else sees, so a copy taken from a
+signed-in browser would serve the build screen to the world.
+
+So the build address opts itself out of caching, and only that address — the home page, the
+master page and every built video page carry on caching normally.
+
+This is not just the standard `DONOTCACHEPAGE` constant, because that is not enough. WP
+Fastest Cache in particular ignores it for ordinary pages: reading its source, it honours
+the constant only for a 503 while Wordfence is active, for a 403, or on the Divi theme. A
+normal 200 like this one is cached regardless. It has its own opt-out function, and that
+function cannot be reached with `do_action()` either — its handler walks `debug_backtrace()`
+looking for a frame with a particular name, so the call has to go through the function it
+provides. It is called late, once the cache has already decided the request is cacheable.
+
+Alongside that: the constants for WP Super Cache, W3 Total Cache and Comet Cache, the
+LiteSpeed and WP Rocket hooks, and a `Cache-Control: no-store` header for anything in
+between.
+
+After updating, clear your cache once — a copy saved earlier will otherwise keep being
+served until it expires.
+
 Be clear-eyed about the trade: this is weaker than a login. Anyone with the address and the
 passcode can publish pages. It is a reasonable trade when the alternative is staff not using
 the tool at all, and the blast radius is capped — but it is a trade, not a free win.
@@ -176,6 +200,10 @@ Verified against WordPress 7.0.3 and Elementor 4.2.2 on PHP 8.3.
 - 12 through the Settings form itself: a short address refused without a passcode,
   a collision named rather than swallowed, sloppy input tidied into a slug, and the
   address going dead when cleared.
+- 14 on the cache opt-out, plus 8 against a real WP Fastest Cache install: an A/B/A
+  that removes and restores the fix, so the harness is shown to catch the unfixed
+  version rather than merely reporting a pass. Includes a control proving ordinary
+  pages still cache.
 - 10 title-format cases including empty tokens, pasted HTML and stray punctuation.
 - Front-end render confirmed: correct video, correct per-page stylesheet, master page
   untouched.

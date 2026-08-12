@@ -397,7 +397,23 @@ class VPB_Admin {
 					</tr>
 				</table>
 
-				<h2 class="vpb-h2">Build without logging in</h2>
+				<?php $cache_plugin = VPB_Public::cache_plugin_notice(); ?>
+			<?php if ( $cache_plugin && ! empty( $s['public_enabled'] ) ) : ?>
+				<div class="notice notice-info">
+					<p>
+						<strong><?php echo esc_html( $cache_plugin ); ?> is active, and has been told to skip the build page.</strong>
+						That page has to run on every visit &mdash; it decides what to show based on who is asking. A cached
+						copy would ask someone for the passcode they had already typed, and could hand a stored copy of the
+						build screen to the wrong visitor.
+					</p>
+					<p>
+						The rest of your site caches exactly as before. If you have just updated the plugin,
+						clear your cache once to get rid of any copy already saved.
+					</p>
+				</div>
+			<?php endif; ?>
+
+			<h2 class="vpb-h2">Build without logging in</h2>
 				<p class="description vpb-lead">
 					Puts the build screen on a secret web address, so someone can use it without a WordPress account.
 					Anyone who has the address can build pages, so treat it like a password.

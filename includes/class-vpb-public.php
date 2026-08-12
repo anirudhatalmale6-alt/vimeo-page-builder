@@ -84,6 +84,44 @@ class VPB_Public {
 		add_filter( 'do_rocket_generate_caching_files', '__return_false' );
 	}
 
+	/**
+	 * WP Fastest Cache has to be asked separately, and asked in a particular way.
+	 *
+	 * It ignores DONOTCACHEPAGE for ordinary pages - reading its source, it only
+	 * honours the constant for a 503 while Wordfence is active, for a 403, or on
+	 * the Divi theme. A normal 200 like this one is cached regardless. That is why
+	 * setting the constant alone left the live site still serving a stored copy.
+	 *
+	 * Its own opt-out is the global function below. It cannot be triggered with
+	 * do_action(): their handler walks debug_backtrace() looking for a frame
+	 * literally named wpfc_exclude_current_page, so the call has to go through
+	 * their function or it is silently ignored.
+	 *
+	 * Called late, from maybe_render(), because the handler is only registered
+	 * once WP Fastest Cache has decided this request is cacheable and started its
+	 * output buffer. At init it would not be listening yet.
+	 */
+	private static function tell_caches_to_skip() {
+		if ( function_exists( 'wpfc_exclude_current_page' ) ) {
+			wpfc_exclude_current_page();
+		}
+	}
+
+	/**
+	 * Is a cache running that we know needs telling, and cannot be told from here?
+	 *
+	 * Used only to show an honest note on the settings screen.
+	 *
+	 * @return string Plugin name, or '' when there is nothing to say.
+	 */
+	public static function cache_plugin_notice() {
+		if ( function_exists( 'wpfc_exclude_current_page' ) ) {
+			return 'WP Fastest Cache';
+		}
+
+		return '';
+	}
+
 	public function reject_uri( $uris ) {
 		$s    = vpb_settings();
 		$path = self::clean_path( isset( $s['public_path'] ) ? $s['public_path'] : '' );
@@ -403,6 +441,8 @@ class VPB_Public {
 		if ( '' === $door ) {
 			return;
 		}
+
+		self::tell_caches_to_skip();
 
 		nocache_headers();
 		// no-store on top of what nocache_headers() sends: this page differs per
