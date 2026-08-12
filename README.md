@@ -59,6 +59,15 @@ ID it arrived with — replaced, added or removed as needed.
 replaced. A second video — a fixed testimonial or intro clip — is left alone. Settings
 warns you when it finds more than one, and lets you say which is which.
 
+This is not a hypothetical. On the site this was built for, each page carries a hero video
+plus a grid of 24 further episodes. Rewriting every video widget — the obvious
+implementation — would have wiped that grid out on every page built.
+
+**An optional company name.** If you are handed a company name along with each video, put
+`{company}` in the title format and a second box appears on the build screen. The page
+title becomes something searchable; the URL stays the bare video ID. A list of pages
+titled only `1211689555` is unusable a year later.
+
 **A video in a global header.** If your video lives in a Theme Builder header rather than
 in the page, cloning the page will not touch it, and the plugin says so rather than
 silently building a page with the wrong video on it.
@@ -83,7 +92,7 @@ Settings itself is always administrator-only.
 | Video ID in the master page | Auto-detected. Only needed to override, e.g. two videos on the page. |
 | Create as | Page or post. |
 | Publish as | Live immediately, or draft so someone eyeballs it first. |
-| Page title | `{id}` and `{title}` (the video's title on Vimeo). URL always uses the ID alone. |
+| Page title | `{id}`, `{title}` (the video's title on Vimeo), `{company}` (typed at build time). URL always uses the ID alone. |
 | Parent page | Optional, e.g. to get `/videos/1234567/`. |
 | Who can build | Editors, authors, or administrators only. |
 | Check with Vimeo | Confirms the video exists before building. Catches a mistyped ID. |
@@ -114,5 +123,6 @@ Verified against WordPress 7.0.3 and Elementor 4.2.2 on PHP 8.3.
   where the video ID also appears as unrelated text, two different videos on one page, and
   both privacy-hash directions.
 - Role checks: administrator, editor and subscriber against both screens.
+- 10 title-format cases including empty tokens, pasted HTML and stray punctuation.
 - Front-end render confirmed: correct video, correct per-page stylesheet, master page
   untouched.

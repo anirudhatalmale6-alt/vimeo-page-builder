@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Vimeo Page Builder
  * Description: One field, one button. Paste a Vimeo ID and it clones your master Elementor page, renames it, re-points the video and publishes it.
- * Version:     1.0.0
+ * Version:     1.1.0
  * Author:      Anirudha Talmale
  * License:     GPL-2.0-or-later
  * Text Domain: vimeo-page-builder
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'VPB_VERSION', '1.0.0' );
+define( 'VPB_VERSION', '1.1.0' );
 define( 'VPB_FILE', __FILE__ );
 define( 'VPB_DIR', plugin_dir_path( __FILE__ ) );
 define( 'VPB_URL', plugin_dir_url( __FILE__ ) );

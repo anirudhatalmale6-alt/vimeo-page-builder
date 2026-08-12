@@ -407,11 +407,12 @@ class VPB_Builder {
 	/**
 	 * Build a page for a Vimeo video.
 	 *
-	 * @param string $raw   Whatever the user pasted.
-	 * @param bool   $force Build again even if a page already exists.
+	 * @param string $raw     Whatever the user pasted.
+	 * @param bool   $force   Build again even if a page already exists.
+	 * @param string $company Optional company name, for the page title.
 	 * @return array|WP_Error
 	 */
-	public static function build( $raw, $force = false ) {
+	public static function build( $raw, $force = false, $company = '' ) {
 		$s = vpb_settings();
 
 		$parsed = VPB_Vimeo::parse( $raw );
@@ -474,12 +475,19 @@ class VPB_Builder {
 			);
 		}
 
+		$company = trim( wp_strip_all_tags( (string) $company ) );
+
 		$title = str_replace(
-			array( '{id}', '{title}' ),
-			array( $vimeo_id, $title_from_vimeo ),
+			array( '{id}', '{title}', '{company}' ),
+			array( $vimeo_id, $title_from_vimeo, $company ),
 			$s['title_format'] ? $s['title_format'] : '{id}'
 		);
-		$title = trim( $title );
+
+		// Tidy up what a blank token leaves behind, e.g. "{company} - {id}" with
+		// no company given should not produce a title starting with " - ".
+		$title = trim( preg_replace( '/\s{2,}/', ' ', $title ) );
+		$title = trim( $title, " -–—|,:" );
+
 		if ( '' === $title ) {
 			$title = $vimeo_id;
 		}
@@ -515,6 +523,9 @@ class VPB_Builder {
 		if ( $vimeo_hash ) {
 			update_post_meta( $post_id, '_vpb_vimeo_hash', $vimeo_hash );
 		}
+		if ( $company ) {
+			update_post_meta( $post_id, '_vpb_company', $company );
+		}
 		update_post_meta( $post_id, '_vpb_source_template', (int) $s['template_id'] );
 		update_post_meta( $post_id, '_vpb_built_at', current_time( 'mysql' ) );
 		update_post_meta( $post_id, '_vpb_built_by', get_current_user_id() );
@@ -529,6 +540,7 @@ class VPB_Builder {
 			'permalink'  => get_permalink( $post_id ),
 			'edit_url'   => self::elementor_edit_url( $post_id ),
 			'video_name' => $title_from_vimeo,
+			'company'    => $company,
 			'warning'    => $warning,
 			'swapped'    => $swap['widgets'],
 		);

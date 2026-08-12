@@ -104,6 +104,17 @@ class VPB_Admin {
 						<a href="#" id="vpb-view" class="vpb-view" target="_blank" rel="noopener" hidden>View page &rarr;</a>
 					</div>
 
+					<?php if ( false !== strpos( $s['title_format'], '{company}' ) ) : ?>
+						<div class="vpb-row vpb-row-second">
+							<input type="text" id="vpb-company" class="vpb-input vpb-input-sub"
+								placeholder="Company name" autocomplete="off">
+						</div>
+						<p class="vpb-hint vpb-hint-sub">
+							Used in the page title so it can be found in the admin later.
+							The URL is always the video ID on its own.
+						</p>
+					<?php endif; ?>
+
 					<div id="vpb-result" class="vpb-result" hidden></div>
 				</div>
 
@@ -298,8 +309,14 @@ class VPB_Admin {
 							<input type="text" name="title_format" id="title_format" class="regular-text"
 								value="<?php echo esc_attr( $s['title_format'] ); ?>">
 							<p class="description">
-								<code>{id}</code> is the Vimeo ID, <code>{title}</code> is the video's title on Vimeo.
+								<code>{id}</code> is the Vimeo ID, <code>{title}</code> is the video's title on Vimeo,
+								<code>{company}</code> is a name typed at build time.
 								The URL always uses the ID on its own, regardless of what you put here.
+							</p>
+							<p class="description">
+								Include <code>{company}</code> and a second box appears on the build screen. Handy if you
+								are given a company name alongside each video &mdash; a list of pages titled only
+								<code>1211689555</code> is hard to search through a year from now.
 							</p>
 						</td>
 					</tr>
@@ -374,10 +391,11 @@ class VPB_Admin {
 			wp_send_json_error( array( 'message' => 'You do not have permission to build video pages.' ) );
 		}
 
-		$raw   = isset( $_POST['vimeo'] ) ? wp_unslash( $_POST['vimeo'] ) : '';
-		$force = ! empty( $_POST['force'] );
+		$raw     = isset( $_POST['vimeo'] ) ? wp_unslash( $_POST['vimeo'] ) : '';
+		$force   = ! empty( $_POST['force'] );
+		$company = isset( $_POST['company'] ) ? sanitize_text_field( wp_unslash( $_POST['company'] ) ) : '';
 
-		$result = VPB_Builder::build( $raw, $force );
+		$result = VPB_Builder::build( $raw, $force, $company );
 
 		if ( is_wp_error( $result ) ) {
 			wp_send_json_error( array(
@@ -397,7 +415,10 @@ class VPB_Admin {
 .vpb-wrap .vpb-label{display:block;font-size:15px;font-weight:600;margin-bottom:2px}
 .vpb-wrap .vpb-hint{margin:0 0 14px;color:#646970}
 .vpb-wrap .vpb-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.vpb-wrap .vpb-row-second{margin-top:10px}
 .vpb-wrap .vpb-input{flex:1 1 320px;font-size:18px;padding:10px 12px;line-height:1.3}
+.vpb-wrap .vpb-input-sub{font-size:15px;padding:8px 12px;max-width:518px}
+.vpb-wrap .vpb-hint-sub{margin:6px 0 0;font-size:12px;color:#787c82}
 .vpb-wrap .vpb-go{font-size:15px!important;height:auto!important;padding:10px 28px!important;font-weight:600;letter-spacing:.4px}
 .vpb-wrap .vpb-go[disabled]{opacity:.6}
 .vpb-wrap .vpb-view{font-weight:600;text-decoration:none;white-space:nowrap}
@@ -430,7 +451,8 @@ jQuery(function($){
 	function esc(s){ return $('<div>').text(s == null ? '' : s).html(); }
 
 	function build(force){
-		var val = $.trim($in.val());
+		var val = $.trim($in.val()),
+			co  = $.trim($('#vpb-company').val() || '');
 
 		if (!val){
 			show('is-err','<p>Paste a Vimeo ID or link first.</p>');
@@ -442,7 +464,7 @@ jQuery(function($){
 		$view.prop('hidden', true);
 		show('', '<p>Working…</p>');
 
-		$.post(VPB.ajax, { action:'vpb_build', nonce:VPB.nonce, vimeo:val, force:force ? 1 : 0 })
+		$.post(VPB.ajax, { action:'vpb_build', nonce:VPB.nonce, vimeo:val, company:co, force:force ? 1 : 0 })
 		.done(function(res){
 			if (!res || !res.success){
 				var m = (res && res.data && res.data.message) ? res.data.message : 'Something went wrong.';
@@ -476,7 +498,9 @@ jQuery(function($){
 					'<a href="'+esc(d.edit_url)+'">Edit in Elementor</a></p>';
 
 			show(d.warning ? 'is-warn' : 'is-ok', html);
-			$in.val('').trigger('focus');
+			$in.val('');
+			$('#vpb-company').val('');
+			$in.trigger('focus');
 		})
 		.fail(function(xhr){
 			show('is-err','<p>The request failed'+(xhr && xhr.status ? ' (status '+xhr.status+')' : '')+'. Try again, and tell your developer if it keeps happening.</p>');
@@ -488,7 +512,7 @@ jQuery(function($){
 
 	$go.on('click', function(){ build(false); });
 
-	$in.on('keydown', function(e){
+	$(document).on('keydown', '#vpb-input, #vpb-company', function(e){
 		if (e.which === 13){ e.preventDefault(); build(false); }
 	});
 
